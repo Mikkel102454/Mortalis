@@ -1,0 +1,4 @@
+name: Mortalis
+version: '1.0-SNAPSHOT'
+main: miguel.nu.mortalis.Main
+api-version: '1.21'

@@ -25,7 +25,7 @@ public class GraveProtection implements Listener{
         Main.plugin.getServer().getPluginManager().registerEvents(this, Main.plugin);
     }
 
-    private boolean isGraveBlock(Block block) {
+    public boolean isGraveBlock(Block block) {
         if (playerDeath.gravestones.isEmpty()) return false;
         for (Gravestone g : playerDeath.gravestones) {
             if (g.getLocation().getBlock().equals(block)) return true;

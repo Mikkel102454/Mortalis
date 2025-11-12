@@ -11,7 +11,7 @@ public class GraveApiImpl implements GraveApi{
 
     @Override
     public boolean isGrave(Location location) {
-        return Main.playerDeath.isGrave(location);
+        return Main.graveProtection.isGraveBlock(location.getBlock());
     }
     @Override
     public OfflinePlayer getGraveOwner(Location location) {

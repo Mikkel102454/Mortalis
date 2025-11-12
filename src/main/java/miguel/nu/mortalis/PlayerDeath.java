@@ -162,16 +162,6 @@ public class PlayerDeath implements Listener {
         timer.runTaskTimer(Main.plugin, 0L, TICKS_PER_SECOND); // runs once per second
     }
 
-    public boolean isGrave(Location location){
-        for(Gravestone gravestone : gravestones){
-            if(gravestone.getLocation().getBlock().getLocation()
-                    .equals(location.getBlock().getLocation())){
-                return true;
-            }
-        }
-        return false;
-    }
-
     public Gravestone getGrave(Location location){
         for(Gravestone gravestone : gravestones){
             if(gravestone.getLocation().getBlock().getLocation()

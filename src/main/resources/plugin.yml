@@ -2,3 +2,4 @@ name: Mortalis
 version: '1.0'
 main: miguel.nu.mortalis.Main
 api-version: '1.21'
+provides: [GraveAPI]

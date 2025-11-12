@@ -142,7 +142,6 @@ public class PlayerDeath implements Listener {
                 List<Gravestone> toRemove = new ArrayList<>();
 
                 for (Gravestone gravestone : gravestones) {
-                    Main.plugin.getLogger().severe("Grave");
                     gravestone.setTimeLived(gravestone.getTimeLived() + 1);
                     if (gravestone.getTimeLived() > safetyTime + expireTime) {
                         toRemove.add(gravestone);

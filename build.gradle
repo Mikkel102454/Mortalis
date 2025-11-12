@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'miguel.nu'
-version = '1.0-SNAPSHOT'
+version = '1.0'
 
 repositories {
     mavenCentral()
@@ -15,7 +15,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
+    compileOnly 'io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT'
 }
 
 tasks {
@@ -52,4 +52,12 @@ processResources {
     filesMatching('plugin.yml') {
         expand props
     }
+}
+
+/* COPY JAR TO PLUGINS FOLDER */
+tasks.register('copyToPlugins', Copy) {
+    dependsOn build // Ensures the JAR is built first
+    from("${buildDir}/libs") // Gradle places the JAR here
+    include("*.jar")
+    into "D:/Gin/MC-SERVER/plugins"
 }

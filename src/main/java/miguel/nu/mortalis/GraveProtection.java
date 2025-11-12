@@ -4,6 +4,7 @@ package miguel.nu.mortalis;
 import miguel.nu.mortalis.Classes.Gravestone;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.EventHandler;
@@ -12,6 +13,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.Iterator;
 import java.util.List;
@@ -37,6 +39,14 @@ public class GraveProtection implements Listener{
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent e) {
         if (isGraveBlock(e.getBlock())) {
+            NamespacedKey key = new NamespacedKey("regula", "breaking_enabled");
+            if(e.getPlayer().getPersistentDataContainer().getOrDefault(key, PersistentDataType.BYTE, (byte)0) == 1){
+                Gravestone gravestone = Main.playerDeath.getGrave(e.getBlock().getLocation());
+                Main.playerDeath.despawnGrave(gravestone);
+                GravePersistent.saveGraves(Main.playerDeath.gravestones);
+                e.getPlayer().sendMessage("§7You broke " + gravestone.getPlayer().getName() + "'s grave.");
+                return;
+            }
             e.setCancelled(true);
             e.getPlayer().sendMessage("§7You cannot break a grave.");
         }

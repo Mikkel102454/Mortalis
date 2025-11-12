@@ -14,6 +14,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
@@ -141,6 +142,7 @@ public class PlayerDeath implements Listener {
                 List<Gravestone> toRemove = new ArrayList<>();
 
                 for (Gravestone gravestone : gravestones) {
+                    Main.plugin.getLogger().severe("Grave");
                     gravestone.setTimeLived(gravestone.getTimeLived() + 1);
                     if (gravestone.getTimeLived() > safetyTime + expireTime) {
                         toRemove.add(gravestone);

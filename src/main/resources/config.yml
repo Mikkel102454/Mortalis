@@ -4,3 +4,5 @@ gravestone:
     #expire: 82800 # 23 hours
     safety: 3600 # 1 hour
     expire: 82800 # 23 hours
+permission:
+  inspect: "INSPECT_GRAVESTONE"

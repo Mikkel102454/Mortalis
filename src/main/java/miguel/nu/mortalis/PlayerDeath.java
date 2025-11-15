@@ -1,6 +1,7 @@
 package miguel.nu.mortalis;
 
 import miguel.nu.mortalis.Classes.Gravestone;
+import miguel.nu.mortalis.menus.GraveMenu;
 import org.bukkit.*;
 import org.bukkit.block.Skull;
 import org.bukkit.entity.Player;
@@ -19,7 +20,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.Material;
-
+import miguel.nu.regula.API.RoleAPI;
 import java.util.*;
 
 import static miguel.nu.mortalis.Decay.*;
@@ -229,7 +230,6 @@ public class PlayerDeath implements Listener {
 
         Gravestone target = null;
         for (Gravestone g : gravestones) {
-            if (!g.getPlayer().getUniqueId().equals(player.getUniqueId())) continue;
             if (g.getLocation().getBlock().equals(clicked)) { target = g; break; }
         }
         if (target == null) return;
@@ -239,13 +239,18 @@ public class PlayerDeath implements Listener {
         e.setUseItemInHand(Event.Result.DENY);
         e.setUseInteractedBlock(Event.Result.DENY);
 
-        if (!target.getPlayer().getUniqueId().equals(player.getUniqueId())) {
-            player.sendMessage("§7This is not your grave!");
-            return;
-        }
-
         // only perform pickup once
         if (e.getHand() != EquipmentSlot.HAND) return;
+
+        if (!target.getPlayer().getUniqueId().equals(player.getUniqueId())) {
+            if(RoleAPI.hasPlayerPermission(player,
+                            Main.config.getString("permission.inspect"))){
+                GraveMenu.open(player, target);
+            }else {
+                player.sendMessage("§7This is not your grave!");
+            }
+            return;
+        }
 
         if (pickupGrave(target)) {
             gravestones.remove(target);

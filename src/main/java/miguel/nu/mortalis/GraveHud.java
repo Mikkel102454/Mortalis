@@ -45,14 +45,14 @@ public class GraveHud {
 
                 if (!g.getPlayer().getUniqueId().equals(p.getUniqueId())) {
                     int despawnLeft = Math.max(0, end - time);
-                    p.sendActionBar(Component.text("Not your grave • Despawns in " + fmt(despawnLeft))
+                    p.sendActionBar(Component.text("Not your grave • Despawns in " + Utils.formatDuration(despawnLeft))
                             .color(NamedTextColor.GRAY));
                     continue;
                 }
 
                 if (time < safe) {
                     int safeLeft = safe - time;
-                    p.sendActionBar(Component.text("Safe: " + fmt(safeLeft) + " left")
+                    p.sendActionBar(Component.text("Safe: " + Utils.formatDuration(safeLeft) + " left")
                             .color(NamedTextColor.GREEN));
                 } else {
                     double decay = Decay.decayFraction(time, safe, dur);
@@ -63,7 +63,7 @@ public class GraveHud {
                             .append(Component.text("Decay: ", NamedTextColor.GRAY))
                             .append(Component.text(percent + "%", NamedTextColor.YELLOW))
                             .append(Component.text("  •  Despawn in ", NamedTextColor.GRAY))
-                            .append(Component.text(fmt(despawnLeft), NamedTextColor.RED))
+                            .append(Component.text(Utils.formatDuration(despawnLeft), NamedTextColor.RED))
                             .build());
                 }
             }
@@ -76,14 +76,5 @@ public class GraveHud {
             if (g.getLocation().getBlock().equals(block)) return g;
         }
         return null;
-    }
-
-    private static String fmt(int seconds) {
-        int h = seconds / 3600;
-        int m = (seconds % 3600) / 60;
-        int s = seconds % 60;
-        if (h > 0) return String.format("%dh %02dm %02ds", h, m, s);
-        if (m > 0) return String.format("%dm %02ds", m, s);
-        return String.format("%ds", s);
     }
 }

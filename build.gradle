@@ -18,6 +18,7 @@ repositories {
 dependencies {
     compileOnly 'io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT'
     implementation 'com.github.Mikkel102454:Regula:93f50e00b6'
+    implementation 'com.github.Mikkel102454:DiscordRelay:ce03ed6493'
 }
 
 tasks {

@@ -1,4 +1,5 @@
 gravestone:
+  debug: true
   time:
     #safety: 3600 # 1 hour
     #expire: 82800 # 23 hours
@@ -6,3 +7,9 @@ gravestone:
     expire: 82800 # 23 hours
 permission:
   inspect: "INSPECT_GRAVESTONE"
+
+message:
+  not-player: "§cOnly players can run this command!"
+  unknown-command: "§cUnknown command!"
+  gravestone-location: "§cYou have a gravestone at (X: %coord_x%, Y: %coord_y%, Z: %coord_z%)"
+  no-gravestone: "§cYou do not have any gravestones!"

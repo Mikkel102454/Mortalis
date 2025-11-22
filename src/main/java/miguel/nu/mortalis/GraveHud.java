@@ -28,13 +28,11 @@ public class GraveHud {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 Block target = p.getTargetBlockExact(RAY_RANGE);
                 if (target == null) {
-                    p.sendActionBar(Component.empty());
                     continue;
                 }
 
                 Gravestone g = findGraveByBlock(target);
                 if (g == null) {
-                    p.sendActionBar(Component.empty());
                     continue;
                 }
 

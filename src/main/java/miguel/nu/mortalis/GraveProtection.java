@@ -1,6 +1,7 @@
 package miguel.nu.mortalis;
 
 
+import miguel.nu.discordRelay.API.DiscordAPI;
 import miguel.nu.mortalis.Classes.Gravestone;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -13,6 +14,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.Iterator;
@@ -45,6 +47,7 @@ public class GraveProtection implements Listener{
                 Main.playerDeath.despawnGrave(gravestone);
                 GravePersistent.saveGraves(Main.playerDeath.gravestones);
                 e.getPlayer().sendMessage("§7You broke " + gravestone.getPlayer().getName() + "'s grave.");
+                DiscordAPI.sendModLog(gravestone.getPlayer(), "GraveBreak", null, -2, e.getPlayer());
                 return;
             }
             e.setCancelled(true);
@@ -127,4 +130,17 @@ public class GraveProtection implements Listener{
     public void onBlockFade(BlockFadeEvent e) {
         if (isGraveBlock(e.getBlock())) e.setCancelled(true);
     }
+
+    // Bucket empty (water / lava placed)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBucketEmpty(PlayerBucketEmptyEvent e) {
+        Block clicked = e.getBlockClicked();
+        Block target = clicked.getRelative(e.getBlockFace());
+
+        // If they’re trying to waterlog / place directly on the grave block
+        if (isGraveBlock(clicked) || isGraveBlock(target)) {
+            e.setCancelled(true);
+        }
+    }
+
 }

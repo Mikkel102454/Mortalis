@@ -3,106 +3,128 @@ package miguel.nu.mortalis;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.util.Vector;
 
-import java.util.ArrayDeque;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
-
-/** Find the nearest AIR block to a given location, within build limits. */
 public final class GraveLocation {
 
     private GraveLocation() {}
 
-    /** Convenience overload: search up to 16 blocks away. */
-    public static Location findNearestAirBlock(Location base) {
-        return findNearestAirBlock(base, 16);
-    }
-
     /**
-     * Finds the nearest AIR block to {@code base}, within world build height and the given radius.
-     * Returns a block-aligned Location. If none found in range, returns the original block location.
+     * Rules:
+     *
+     * - If the player is in liquid (feet OR head in liquid):
+     *   - Scan straight up for the first AIR block.
+     *   - Stop as soon as we hit a solid block (anything that is not liquid and not air).
+     *   - If no AIR is found before that (or before build height) -> spawn at the player's feet.
+     *
+     * - If the player is NOT in liquid:
+     *   - If something that is not liquid or air is there, move one block up,
+     *     and keep going up until you find AIR.
+     *   - If no AIR is found at all -> spawn at the player's feet.
      */
-    public static Location findNearestAirBlock(Location base, int maxRadius) {
+    public static Location findGraveLocation(Location base) {
         World world = base.getWorld();
         if (world == null) return base;
 
-        base = base.getBlock().getLocation();
+        // Work with block-aligned coordinates
+        Block feetBlock = base.getBlock();
+        int x = feetBlock.getX();
+        int y = feetBlock.getY();
+        int z = feetBlock.getZ();
+        int maxY = world.getMaxHeight() - 1;
 
-        final int minY = world.getMinHeight();
-        final int maxY = world.getMaxHeight() - 1;
+        boolean inLiquid = isInLiquid(base);
 
-        Block baseBlock = base.getBlock();
-        if (isAir(baseBlock) && withinBuildLimits(baseBlock.getY(), minY, maxY)) {
-            return baseBlock.getLocation();
+        // CASE 1: Player is in liquid (feet OR head in liquid)
+        if (inLiquid) {
+            // Find first air above, stopping when we hit a solid (non-air, non-liquid)
+            Location airAbove = findFirstAirAboveUntilSolid(world, x, y, z, maxY);
+            if (airAbove != null) {
+                return airAbove;
+            }
+
+            // No air before solid/build height -> spawn at player's feet
+            return findFirstAirOrLiquidUpwards(world, x, y, z, maxY);
         }
 
-        ArrayDeque<Vector> q = new ArrayDeque<>();
-        Set<Vector> seen = new HashSet<>();
+        // CASE 2: Player is NOT in liquid
+        // "if something that is not liquid or air is there it should move a block up and so on"
+        Location firstAirUp = findFirstAirOrLiquidUpwards(world, x, y, z, maxY);
+        if (firstAirUp != null) {
+            return firstAirUp;
+        }
 
-        final int bx = base.getBlockX();
-        final int by = clampY(base.getBlockY(), minY, maxY);
-        final int bz = base.getBlockZ();
+        // No air found above -> fall back to feet
+        return feetBlock.getLocation();
+    }
 
-        Vector start = new Vector(bx, by, bz);
-        q.add(start);
-        seen.add(start);
+    /**
+     * Determine if the player is "in liquid":
+     * - feet block is liquid OR
+     * - head block is liquid
+     */
+    private static boolean isInLiquid(Location base) {
+        World world = base.getWorld();
+        if (world == null) return false;
 
-        // Neighbor offsets (6-connected)
-        final int[][] dirs = new int[][]{
-                { 1,  0,  0},
-                {-1,  0,  0},
-                { 0,  1,  0},
-                { 0, -1,  0},
-                { 0,  0,  1},
-                { 0,  0, -1}
-        };
+        Block feet = base.getBlock();
+        Block head = base.clone().add(0, 1, 0).getBlock();
 
-        final int maxR2 = maxRadius * maxRadius;
+        return (feet != null && feet.isLiquid()) ||
+                (head != null && head.isLiquid());
+    }
 
-        while (!q.isEmpty()) {
-            Vector v = q.pollFirst();
-            int x = v.getBlockX();
-            int y = v.getBlockY();
-            int z = v.getBlockZ();
+    /**
+     * For the "in liquid" case:
+     * Scan upwards starting ABOVE startY:
+     *  - Return the first AIR block found.
+     *  - Stop and return null if we hit a solid (non-air, non-liquid) block.
+     */
+    private static Location findFirstAirAboveUntilSolid(World world, int x, int startY, int z, int maxY) {
+        for (int yy = startY + 1; yy <= maxY; yy++) {
+            Block b = world.getBlockAt(x, yy, z);
 
-            if (!withinBuildLimits(y, minY, maxY)) continue;
-
-            Block b = world.getBlockAt(x, y, z);
             if (isAir(b)) {
                 return b.getLocation();
             }
 
-            // Push neighbors
-            for (int[] d : dirs) {
-                int nx = x + d[0];
-                int ny = y + d[1];
-                int nz = z + d[2];
+            // Solid = not air and not liquid
+            if (!b.isLiquid() && !isAir(b)) {
+                // Hit a solid block before finding air
+                return null;
+            }
 
-                // Radius check (euclidean)
-                int dx = nx - bx, dy = ny - by, dz = nz - bz;
-                if (dx * dx + dy * dy + dz * dz > maxR2) continue;
+            // If it's liquid, keep going up
+        }
+        return null; // reached build height with no air
+    }
 
-                Vector nv = new Vector(nx, ny, nz);
-                if (seen.add(nv)) {
-                    q.addLast(nv);
-                }
+    /**
+     * For the "move a block up and so on" case:
+     * Start at startY and go up until maxY, returning the first AIR block.
+     * This never places the grave in a non-air block (heads, slabs, graves, etc.).
+     */
+    private static Location findFirstAirUpwards(World world, int x, int startY, int z, int maxY) {
+        for (int yy = startY; yy <= maxY; yy++) {
+            Block b = world.getBlockAt(x, yy, z);
+            if (isAir(b)) {
+                return b.getLocation();
             }
         }
-
-        return base;
+        return null;
     }
+
+    private static Location findFirstAirOrLiquidUpwards(World world, int x, int startY, int z, int maxY) {
+        for (int yy = startY; yy <= maxY; yy++) {
+            Block b = world.getBlockAt(x, yy, z);
+            if (isAir(b) || b.isLiquid()) {
+                return b.getLocation();
+            }
+        }
+        return null;
+    }
+
 
     private static boolean isAir(Block b) {
         return b != null && (b.isEmpty() || b.getType().isAir());
-    }
-
-    private static boolean withinBuildLimits(int y, int minY, int maxY) {
-        return y >= minY && y <= maxY;
-    }
-
-    private static int clampY(int y, int minY, int maxY) {
-        return Math.max(minY, Math.min(maxY, y));
     }
 }

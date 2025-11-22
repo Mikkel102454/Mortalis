@@ -1,5 +1,6 @@
 package miguel.nu.mortalis;
 
+import miguel.nu.mortalis.Commands.CommandListener;
 import miguel.nu.mortalis.menus.GuiListener;
 import miguel.nu.regula.users.BedrockJoinListener;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -21,6 +22,9 @@ public final class Main extends JavaPlugin {
         config = getConfig();
 
         getServer().getPluginManager().registerEvents(new GuiListener(), this);
+
+        new CommandListener(this);
+
         playerDeath = new PlayerDeath();
         playerDeath.startGraveTimer();
         graveProtection = new GraveProtection(playerDeath);

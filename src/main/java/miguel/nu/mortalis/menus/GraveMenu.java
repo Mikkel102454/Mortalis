@@ -21,43 +21,37 @@ public class GraveMenu {
             inventory.setItem(i, items[i]);
         }
 
-        ItemStack helmet = grave.getHelmet();
-        ItemStack chest = grave.getChest();
-        ItemStack legs = grave.getLegs();
-        ItemStack boots = grave.getBoots();
-        ItemStack offhand = grave.getOffhand();
-
         ItemStack noItem = ItemStack.of(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = noItem.getItemMeta();
         meta.setHideTooltip(true);
         noItem.setItemMeta(meta);
 
-        if(helmet != null && helmet.getType() != Material.AIR){
-            inventory.setItem(36, helmet);
+        if(grave.getHelmet() != null && grave.getHelmet().getType() != Material.AIR){
+            inventory.setItem(36, grave.getHelmet());
         }else {
             inventory.setItem(36, noItem);
         }
 
-        if(chest != null && chest.getType() != Material.AIR){
-            inventory.setItem(37, chest);
+        if(grave.getChest() != null && grave.getChest().getType() != Material.AIR){
+            inventory.setItem(37, grave.getChest());
         }else {
             inventory.setItem(37, noItem);
         }
 
-        if(legs != null && legs.getType() != Material.AIR){
-            inventory.setItem(38, legs);
+        if(grave.getLegs() != null && grave.getLegs().getType() != Material.AIR){
+            inventory.setItem(38, grave.getLegs());
         }else {
             inventory.setItem(38, noItem);
         }
 
-        if(boots != null && boots.getType() != Material.AIR){
-            inventory.setItem(39, boots);
+        if(grave.getBoots() != null && grave.getBoots().getType() != Material.AIR){
+            inventory.setItem(39, grave.getBoots());
         }else {
             inventory.setItem(39, noItem);
         }
 
-        if(offhand != null && offhand.getType() != Material.AIR){
-            inventory.setItem(40, offhand);
+        if(grave.getOffhand() != null && grave.getOffhand().getType() != Material.AIR){
+            inventory.setItem(40, grave.getOffhand());
         }else {
             inventory.setItem(40, noItem);
         }

@@ -2,8 +2,11 @@ package miguel.nu.mortalis;
 
 import miguel.nu.mortalis.Classes.Gravestone;
 import miguel.nu.mortalis.menus.GraveMenu;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.*;
 import org.bukkit.block.Skull;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
@@ -15,12 +18,12 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.Material;
 import miguel.nu.regula.API.RoleAPI;
+import miguel.nu.discordRelay.API.DiscordAPI;
 import java.util.*;
 
 import static miguel.nu.mortalis.Decay.*;
@@ -46,28 +49,35 @@ public class PlayerDeath implements Listener {
     }
 
     public void registerDeath(Player player){
-        Location freeLocation = GraveLocation.findNearestAirBlock(player.getLocation());
+        Location freeLocation = GraveLocation.findGraveLocation(player.getLocation());
         Gravestone gravestone = new Gravestone();
         gravestone.setTimeLived(0);
         gravestone.setPlayer(player);
         gravestone.setLocation(freeLocation);
 
-        gravestone.setItemStacks(player.getInventory().getStorageContents());
-        gravestone.setHelmet(player.getInventory().getHelmet());
-        gravestone.setChest(player.getInventory().getChestplate());
-        gravestone.setLegs(player.getInventory().getLeggings());
-        gravestone.setBoots(player.getInventory().getBoots());
-        gravestone.setOffhand(player.getInventory().getItemInOffHand());
+        PlayerInventory inv = player.getInventory();
+        gravestone.setItemStacks(inv.getStorageContents());
+        gravestone.setOffhand(inv.getItemInOffHand());
+        gravestone.setHelmet(inv.getHelmet());
+        gravestone.setChest(inv.getChestplate());
+        gravestone.setLegs(inv.getLeggings());
+        gravestone.setBoots(inv.getBoots());
 
         gravestones.add(gravestone);
         Block block = freeLocation.getBlock();
         block.setType(Material.PLAYER_HEAD);
         GravePersistent.saveGraves(gravestones);
+        GravePersistent.saveGraveLongTerm(UUID.randomUUID(), gravestone);
 
         if (block.getState() instanceof Skull skull) {
             skull.setOwningPlayer(player);
             skull.update(true);
         }
+
+        player.sendMessage("§cYour gravestone spawned at (X: "
+                + freeLocation.x() + ", Y:"
+                + freeLocation.y() + ", Z:"
+                + freeLocation.z() + ")");
     }
     public void despawnGrave(Gravestone gravestone){
         gravestones.remove(gravestone);
@@ -75,61 +85,133 @@ public class PlayerDeath implements Listener {
         GravePersistent.saveGraves(gravestones);
     }
 
-    public boolean pickupGrave(Gravestone grave) {
+    public int pickupGrave(Gravestone grave) {
+        boolean debug = Main.config.getBoolean("gravestone.debug");
+        if(debug) Main.plugin.getLogger().info("Getting player for gravestone");
+
         Player player = grave.getPlayer().getPlayer();
-        if (player == null || !player.isOnline()) return false;
+        if (player == null || !player.isOnline()) {
+            if(debug) Main.plugin.getLogger().warning("Could not get the player. Returning!");
+            return 1;
+        }
+
+        if(debug) Main.plugin.getLogger().info("Got the player named " + player.getName());
 
         final int time = grave.getTimeLived();
-        final double p = decayFraction(time, safetyTime, expireTime); // 0..1
+        final double p = decayFraction(time, safetyTime, expireTime);
+
+        if(debug){
+            Main.plugin.getLogger().info("The grave has been alive for " + time);
+            Main.plugin.getLogger().info("The grave have decayed " + p + "%");
+        }
 
         PlayerInventory inv = player.getInventory();
 
-        ItemStack helmet  = norm(grave.getHelmet());
-        ItemStack chest   = norm(grave.getChest());
-        ItemStack legs    = norm(grave.getLegs());
-        ItemStack boots   = norm(grave.getBoots());
-        ItemStack offhand = norm(grave.getOffhand());
+        List<ItemStack> inventoryItems = new ArrayList<>();
+        inventoryItems.addAll(Arrays.asList(inv.getStorageContents()));
+        inventoryItems.add(inv.getItemInOffHand());
+        inventoryItems.addAll(Arrays.asList(inv.getArmorContents()));
 
+        if(debug){
+            int invSpace = 0;
+            for (ItemStack item : inventoryItems){
+                if(item == null || item.getType() == Material.AIR) invSpace++;
+            }
+
+            Main.plugin.getLogger().info("The player has " + invSpace + " free spaces in inventory");
+        }
+
+        if(debug){
+            Main.plugin.getLogger().info("Getting items out of grave");
+        }
+
+        ItemStack[] items = grave.getItemStacks();
         List<ItemStack> backpack = new ArrayList<>();
-        for (ItemStack s : grave.getItemStacks()) {
-            s = norm(s);
-            if (s != null) backpack.add(s.clone());
+
+        for (ItemStack stack : items) {
+            if (isPresent(stack)) {
+                backpack.add(stack.clone());
+            }
         }
 
-        List<ItemStack> displaced = new ArrayList<>();
-        if (helmet  != null && isPresent(inv.getHelmet()))     displaced.add(inv.getHelmet().clone());
-        if (chest   != null && isPresent(inv.getChestplate())) displaced.add(inv.getChestplate().clone());
-        if (legs    != null && isPresent(inv.getLeggings()))   displaced.add(inv.getLeggings().clone());
-        if (boots   != null && isPresent(inv.getBoots()))      displaced.add(inv.getBoots().clone());
-        if (offhand != null && isPresent(inv.getItemInOffHand())) displaced.add(inv.getItemInOffHand().clone());
+        backpack.add(grave.getOffhand());
+        backpack.add(grave.getBoots());
+        backpack.add(grave.getLegs());
+        backpack.add(grave.getChest());
+        backpack.add(grave.getHelmet());
+        if(debug){
+            int invSpace = 0;
+            for (ItemStack item : backpack){
+                if(item != null && item.getType() != Material.AIR) invSpace++;
+            }
 
-        ItemStack[] storageSnapshot = cloneArray(inv.getStorageContents());
-        List<ItemStack> toStore = new ArrayList<>(displaced);
-        toStore.addAll(backpack);
-        if (!canFitAll(storageSnapshot, toStore)) {
-            return false;
+            Main.plugin.getLogger().info("There was a total of " + invSpace + " items in the grave");
+            Main.plugin.getLogger().info("There was a total of " + backpack.size() + " slots in the grave");
         }
 
-        helmet  = applyDecay(helmet,  p);
-        chest   = applyDecay(chest,   p);
-        legs    = applyDecay(legs,    p);
-        boots   = applyDecay(boots,   p);
-        offhand = applyDecay(offhand, p);
+        if(!canFitAll(inventoryItems, backpack, debug)){
+            return 2;
+        }
+
+        if(debug){
+            Main.plugin.getLogger().info("Applying decay to items");
+        }
+
+        ItemStack helmet = applyDecay(backpack.getLast(), p);
+        ItemStack chest = applyDecay(backpack.get(backpack.size()-2), p);
+        ItemStack legs = applyDecay(backpack.get(backpack.size()-3), p);
+        ItemStack boots = applyDecay(backpack.get(backpack.size()-4), p);
+        ItemStack offhand = applyDecay(backpack.get(backpack.size()-5), p);
         backpack = decayList(backpack, p);
 
-        Map<Integer, ItemStack> leftover = inv.addItem(displaced.toArray(new ItemStack[0]));
-        if (!leftover.isEmpty()) return false;
+        if(debug){
+            Main.plugin.getLogger().info("Giving armor + offhand.");
+        }
 
-        if (helmet  != null) inv.setHelmet(helmet);
-        if (chest   != null) inv.setChestplate(chest);
-        if (legs    != null) inv.setLeggings(legs);
-        if (boots   != null) inv.setBoots(boots);
-        if (offhand != null) inv.setItemInOffHand(offhand);
+        if (isEmpty(inv.getHelmet()) && isPresent(helmet)) {
+            inv.setHelmet(helmet);
+            backpack.remove(helmet);
+        }
 
-        leftover = inv.addItem(backpack.toArray(new ItemStack[0]));
-        if (!leftover.isEmpty()) return false;
+        if (isEmpty(inv.getChestplate()) && isPresent(chest)) {
+            inv.setChestplate(chest);
+            backpack.remove(chest);
+        }
 
-        return true;
+        if (isEmpty(inv.getLeggings()) && isPresent(legs)) {
+            inv.setLeggings(legs);
+            backpack.remove(legs);
+        }
+
+        if (isEmpty(inv.getBoots()) && isPresent(boots)) {
+            inv.setBoots(boots);
+            backpack.remove(boots);
+        }
+
+        if (isEmpty(inv.getItemInOffHand()) && isPresent(offhand)){
+            inv.setItemInOffHand(offhand);
+            backpack.remove(offhand);
+        }
+
+        if (backpack.size() > 36) {
+            backpack = backpack.subList(0, 36);
+        }
+        ItemStack[] backpackArray = backpack.toArray(new ItemStack[0]);
+        if(debug){
+            Main.plugin.getLogger().info("giving items. Items to give is " + backpackArray.length);
+        }
+
+
+        Map<Integer, ItemStack> leftover = inv.addItem(backpackArray);
+        if (!leftover.isEmpty()) {
+            Main.plugin.getLogger().warning("For some reason the player did not have enough space even tho we got earlier that they have!");
+            return 3;
+        }
+
+        if(debug) {
+            Main.plugin.getLogger().info("all items added to players inventory");
+        }
+        return 0;
     }
 
     public void startGraveTimer() {
@@ -205,6 +287,12 @@ public class PlayerDeath implements Listener {
             e.setDroppedExp(0);
             registerDeath(player);
         }
+        Component component = e.deathMessage();
+        String deathMessage = "";
+        if(component != null){
+            deathMessage = PlainTextComponentSerializer.plainText().serialize(component);
+        }
+        DiscordAPI.sendDeathLog(e.getPlayer(), deathMessage, e.getPlayer().getLocation());
     }
 
     private final Map<UUID, Long> pickupCooldown = new HashMap<>();
@@ -252,7 +340,8 @@ public class PlayerDeath implements Listener {
             return;
         }
 
-        if (pickupGrave(target)) {
+        int exitCode = pickupGrave(target);
+        if (exitCode == 0) {
             gravestones.remove(target);
 
             pickupCooldown.put(player.getUniqueId(), System.currentTimeMillis() + PICKUP_COOLDOWN_MS);
@@ -262,9 +351,19 @@ public class PlayerDeath implements Listener {
 
             clicked.setType(Material.AIR);
             GravePersistent.saveGraves(gravestones);
-        } else {
+        } else if (exitCode == 2) {
             player.sendMessage("§7You need more inventory space to pick up your grave.");
+        } else {
+            player.sendMessage("§7Something went wrong while trying to pickup your grave. Please contact the developer!");
+            Main.plugin.getLogger().severe("Someone tried to pickup a grave and failed. Exit code: " + exitCode);
         }
     }
 
+    private static boolean isEmpty(ItemStack stack) {
+        return stack == null || stack.getType() == Material.AIR || stack.getAmount() <= 0;
+    }
+
+    private static boolean isPresent(ItemStack stack) {
+        return stack != null && stack.getType() != Material.AIR && stack.getAmount() > 0;
+    }
 }

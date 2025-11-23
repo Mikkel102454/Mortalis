@@ -1,5 +1,6 @@
 package miguel.nu.mortalis;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 
@@ -15,6 +16,6 @@ public class GraveApiImpl implements GraveApi{
     }
     @Override
     public OfflinePlayer getGraveOwner(Location location) {
-        return Main.playerDeath.getGrave(location).getPlayer();
+        return Bukkit.getOfflinePlayer(Main.playerDeath.getGrave(location).getPlayer());
     }
 }

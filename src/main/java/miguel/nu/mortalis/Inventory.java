@@ -17,100 +17,176 @@ public class Inventory {
         return s == null || s.getType() == Material.AIR || s.getAmount() <= 0;
     }
 
-    /**
-     * inventoryItems indices:
-     *  0 - 35 : Main inventory
-     *  36     : Boots
-     *  37     : Leggings
-     *  38     : Chestplate
-     *  39     : Helmet
-     *  40     : Offhand
-     *
-     * items:
-     *  extra items you want to try to fit (e.g. grave/backpack)
-     *
-     * Behavior:
-     *  - Only slots 0–35 are treated as storage (simulated inventory).
-     *  - We FIRST virtually auto-equip armor/offhand items from `items`
-     *    into empty armor/offhand slots (36–40).
-     *  - Only the remaining items must fit into 0–35.
-     *  - If everything fits into those 36 slots, returns true.
-     */
-    public static boolean canFitAll(List<ItemStack> inventoryItems, List<ItemStack> items, boolean debug) {
-        // 1) Build simulated main inventory (0–35 only)
-        int mainSize = Math.min(36, inventoryItems.size());
-        List<ItemStack> simSlots = new ArrayList<>(mainSize);
-        for (int i = 0; i < mainSize; i++) {
-            ItemStack s = inventoryItems.get(i);
-            simSlots.add(s == null ? null : s.clone());
-        }
-
-        // 2) Simulated armor/offhand slots (36–40) based on inventoryItems
-        ItemStack boots   = inventoryItems.size() > 36 ? cloneOrNull(inventoryItems.get(36)) : null;
-        ItemStack legs    = inventoryItems.size() > 37 ? cloneOrNull(inventoryItems.get(37)) : null;
-        ItemStack chest   = inventoryItems.size() > 38 ? cloneOrNull(inventoryItems.get(38)) : null;
-        ItemStack helmet  = inventoryItems.size() > 39 ? cloneOrNull(inventoryItems.get(39)) : null;
-        ItemStack offhand = inventoryItems.size() > 40 ? cloneOrNull(inventoryItems.get(40)) : null;
-
-        // 3) Build list of items that still need to fit in main inventory AFTER
-        //    virtually equipping whatever we can into empty armor/offhand slots.
-        List<ItemStack> toPlace = new ArrayList<>();
-
-        if (items != null) {
-            for (ItemStack original : items) {
-                if (!isPresent(original)) continue;
-
-                ItemStack in = original.clone();
-                Material type = in.getType();
-
-                boolean equipped = false;
-
-                // Try to "equip" in simulation if the slot is empty and the item fits that slot
-                if (isEmpty(boots) && isBoots(type)) {
-                    boots = in;
-                    equipped = true;
-                } else if (isEmpty(legs) && isLeggings(type)) {
-                    legs = in;
-                    equipped = true;
-                } else if (isEmpty(chest) && isChestplate(type)) {
-                    chest = in;
-                    equipped = true;
-                } else if (isEmpty(helmet) && isHelmet(type)) {
-                    helmet = in;
-                    equipped = true;
-                } else if (isEmpty(offhand) && canGoOffhand(type)) {
-                    // Optional: you can restrict this to shields/totems if you want
-                    offhand = in;
-                    equipped = true;
-                }
-
-                // If we couldn't equip it, it must fit into main inventory
-                if (!equipped) {
-                    toPlace.add(in);
-                }
-            }
-        }
-
-        // 4) Try to fit remaining items into the simulated main inventory
-        for (ItemStack in : toPlace) {
-            if (!fitOne(simSlots, in)) {
-                if (debug) {
-                    Main.plugin.getLogger().info("Player could not fit item " + in.getType());
-                }
-                return false;
-            }
-        }
-
-        if (debug) {
-            Main.plugin.getLogger().info("Player was able to fit all items");
-        }
-        return true;
-    }
-
     private static ItemStack cloneOrNull(ItemStack s) {
         return s == null ? null : s.clone();
     }
 
+    /**
+     * inventoryItems (current player inventory) indices:
+     *  0 - 35 : Main inventory
+     *  36     : Offhand
+     *  37     : Boots
+     *  38     : Leggings
+     *  39     : Chestplate
+     *  40     : Helmet
+     *
+     * items (what we're trying to pick up), laid out the same way:
+     *  0 - 35 : Main inventory contents from death/backpack/etc.
+     *  36     : Offhand item from death
+     *  37     : Boots from death
+     *  38     : Leggings from death
+     *  39     : Chestplate from death
+     *  40     : Helmet from death
+     *
+     * Behavior:
+     *  1) Simulate whether the main storage (slots 0–35) can hold:
+     *     - all existing main-inventory items from inventoryItems[0–35], AND
+     *     - all pickup main items from items[0–35],
+     *     stacking where possible.
+     *
+     *  2) Then, in this order, handle equipment from the pickup (items[x]):
+     *       - Boots  (index 37)
+     *       - Legs   (index 38)
+     *       - Chest  (index 39)
+     *       - Helmet (index 40)
+     *       - Offhand(index 36)
+     *
+     *     For each:
+     *       - If there is no such item in items[x], skip it.
+     *       - If the player's corresponding slot (inventoryItems[x]) is EMPTY:
+     *           -> we can equip the new item for free (no main-slot usage).
+     *       - If the player's slot is NOT EMPTY:
+     *           -> we will equip the new item and the OLD item from
+     *              inventoryItems[x] must fit into the main storage (0–35),
+     *              using the same stacking rules.
+     *
+     *  3) If at any point we cannot fit something into the 0–35 main storage,
+     *     return false. Otherwise return true.
+     */
+    public static boolean canFitAll(List<ItemStack> inventoryItems, List<ItemStack> items, boolean debug) {
+        // --- 1) Simulate main storage with stacking ---
+
+        // Start with an empty simulated main inventory (36 slots)
+        List<ItemStack> simSlots = new ArrayList<>(36);
+        for (int i = 0; i < 36; i++) {
+            simSlots.add(null);
+        }
+
+        // a) Add current main inventory items (inventoryItems[0..35]) into simSlots with stacking
+        if (inventoryItems != null) {
+            int limit = Math.min(36, inventoryItems.size());
+            for (int i = 0; i < limit; i++) {
+                ItemStack cur = inventoryItems.get(i);
+                if (!isPresent(cur)) continue;
+                if (!fitOne(simSlots, cur.clone())) {
+                    if (debug) {
+                        Main.plugin.getLogger().info("Main inventory overflowed with existing item " + cur.getType());
+                    }
+                    return false;
+                }
+            }
+        }
+
+        // b) Add pickup main items (items[0..35]) into simSlots with stacking
+        if (items != null) {
+            int limit = Math.min(36, items.size());
+            for (int i = 0; i < limit; i++) {
+                ItemStack cur = items.get(i);
+                if (!isPresent(cur)) continue;
+                if (!fitOne(simSlots, cur.clone())) {
+                    if (debug) {
+                        Main.plugin.getLogger().info("Main inventory overflowed with pickup item " + cur.getType());
+                    }
+                    return false;
+                }
+            }
+        }
+
+        // --- 2) Handle equipment slots in the specified order ---
+
+        // Helper to get a safe item from a list at an index
+        java.util.function.BiFunction<List<ItemStack>, Integer, ItemStack> getAt =
+                (list, idx) -> (list != null && idx < list.size()) ? list.get(idx) : null;
+
+        // Boots (index 37)
+        if (!handleEquipSlot(37, inventoryItems, items, simSlots, debug, "boots")) {
+            return false;
+        }
+
+        // Legs (index 38)
+        if (!handleEquipSlot(38, inventoryItems, items, simSlots, debug, "leggings")) {
+            return false;
+        }
+
+        // Chest (index 39)
+        if (!handleEquipSlot(39, inventoryItems, items, simSlots, debug, "chestplate")) {
+            return false;
+        }
+
+        // Helmet (index 40)
+        if (!handleEquipSlot(40, inventoryItems, items, simSlots, debug, "helmet")) {
+            return false;
+        }
+
+        // Offhand (index 36)
+        if (!handleEquipSlot(36, inventoryItems, items, simSlots, debug, "offhand")) {
+            return false;
+        }
+
+        if (debug) {
+            Main.plugin.getLogger().info("Player was able to fit all items (main + equipment)");
+        }
+        return true;
+    }
+
+    /**
+     * Handle one equipment slot:
+     * - newItem comes from items[slotIndex]
+     * - existing equipped item comes from inventoryItems[slotIndex]
+     * If existing equipped is non-empty and newItem is present, try to fit
+     * the existing equipped item into the main inventory (simSlots).
+     */
+    private static boolean handleEquipSlot(
+            int slotIndex,
+            List<ItemStack> inventoryItems,
+            List<ItemStack> items,
+            List<ItemStack> simSlots,
+            boolean debug,
+            String label
+    ) {
+        ItemStack newItem = (items != null && slotIndex < items.size()) ? items.get(slotIndex) : null;
+        if (!isPresent(newItem)) {
+            // No new item for this slot from the pickup
+            return true;
+        }
+
+        ItemStack existing = (inventoryItems != null && slotIndex < inventoryItems.size())
+                ? inventoryItems.get(slotIndex)
+                : null;
+
+        if (isEmpty(existing)) {
+            // Slot is empty → we can equip newItem for free, no main inventory usage.
+            return true;
+        }
+
+        // Slot already has something → that existing item must fit into main inventory.
+        ItemStack oldClone = existing.clone();
+        if (!fitOne(simSlots, oldClone)) {
+            if (debug) {
+                Main.plugin.getLogger().info(
+                        "Could not fit existing " + label + " item " + existing.getType() + " into main inventory");
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Try to fit a single stack into the given slots (main inventory simulation).
+     * - First merges into similar stacks up to max stack size.
+     * - Then fills empty slots with new stacks.
+     */
     public static boolean fitOne(List<ItemStack> slots, ItemStack in) {
         if (!isPresent(in)) {
             return true;
@@ -145,62 +221,5 @@ public class Inventory {
         }
 
         return in.getAmount() <= 0;
-    }
-
-    // --- Helpers to classify armor/offhand items ---
-
-    private static boolean isHelmet(Material m) {
-        return switch (m) {
-            case LEATHER_HELMET,
-                 CHAINMAIL_HELMET,
-                 IRON_HELMET,
-                 GOLDEN_HELMET,
-                 DIAMOND_HELMET,
-                 NETHERITE_HELMET,
-                 TURTLE_HELMET -> true;
-            default -> false;
-        };
-    }
-
-    private static boolean isChestplate(Material m) {
-        return switch (m) {
-            case LEATHER_CHESTPLATE,
-                 CHAINMAIL_CHESTPLATE,
-                 IRON_CHESTPLATE,
-                 GOLDEN_CHESTPLATE,
-                 DIAMOND_CHESTPLATE,
-                 NETHERITE_CHESTPLATE -> true;
-            default -> false;
-        };
-    }
-
-    private static boolean isLeggings(Material m) {
-        return switch (m) {
-            case LEATHER_LEGGINGS,
-                 CHAINMAIL_LEGGINGS,
-                 IRON_LEGGINGS,
-                 GOLDEN_LEGGINGS,
-                 DIAMOND_LEGGINGS,
-                 NETHERITE_LEGGINGS -> true;
-            default -> false;
-        };
-    }
-
-    private static boolean isBoots(Material m) {
-        return switch (m) {
-            case LEATHER_BOOTS,
-                 CHAINMAIL_BOOTS,
-                 IRON_BOOTS,
-                 GOLDEN_BOOTS,
-                 DIAMOND_BOOTS,
-                 NETHERITE_BOOTS -> true;
-            default -> false;
-        };
-    }
-
-    private static boolean canGoOffhand(Material m) {
-        // You can tighten this to SHIELD, TOTEM_OF_UNDYING, etc. if you want.
-        // For now, allow anything in offhand when it's empty.
-        return m != Material.AIR;
     }
 }

@@ -76,6 +76,13 @@ public class GravePersistent {
         }
 
         try {
+            if(Main.config.getBoolean("gravestone.debug")){
+                Main.plugin.getLogger().info("\n====== Saved gravestones.yml ======\n"
+                        + cfg.saveToString() +
+                        "\n===================================");
+
+            }
+
             cfg.save(file);
         } catch (IOException ex) {
             Main.plugin.getLogger().severe("Failed to save gravestones.yml: " + ex.getMessage());
@@ -102,7 +109,7 @@ public class GravePersistent {
             JsonObject obj = new JsonObject();
             obj.addProperty("graveId", graveId.toString());
 
-            obj.addProperty("player", grave.getPlayer().getUniqueId().toString());
+            obj.addProperty("player", grave.getPlayer().toString());
             obj.addProperty("world", grave.getLocation().getWorld().getUID().toString());
             obj.addProperty("worldName", grave.getLocation().getWorld().getName());
             obj.addProperty("x", grave.getLocation().x());
@@ -111,8 +118,8 @@ public class GravePersistent {
             obj.addProperty("helmet", grave.getHelmet().toString());
             obj.addProperty("chest", grave.getChest().toString());
             obj.addProperty("legs", grave.getLegs().toString());
-            obj.addProperty("boots", grave.getHelmet().toString());
-            obj.addProperty("offhand", grave.getHelmet().toString());
+            obj.addProperty("boots", grave.getBoots().toString());
+            obj.addProperty("offhand", grave.getOffhand().toString());
 
             JsonArray inv = new JsonArray();
             ItemStack[] items = grave.getInventory();
@@ -142,7 +149,7 @@ public class GravePersistent {
 
     private static void serializeGrave(YamlConfiguration cfg, String base, Gravestone g) {
         // owner
-        OfflinePlayer owner = g.getPlayer();
+        OfflinePlayer owner = Bukkit.getOfflinePlayer(g.getPlayer());
         if (owner != null && owner.getUniqueId() != null) {
             cfg.set(base + ".player", owner.getUniqueId().toString());
         }
@@ -228,7 +235,7 @@ public class GravePersistent {
 
         Gravestone g = new Gravestone();
         g.setTimeLived(time);
-        g.setPlayer(owner);
+        g.setPlayer(owner.getUniqueId());
         g.setLocation(loc);
         g.setItemStacks(inv);
         g.setHelmet(helmet);

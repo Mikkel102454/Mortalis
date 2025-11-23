@@ -5,11 +5,13 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.UUID;
+
 public class Gravestone {
     int timeLived;
     ItemStack[] inventory;
     Location location;
-    OfflinePlayer player;
+    UUID playerUuid;
     ItemStack helmet;
     ItemStack chest;
     ItemStack legs;
@@ -40,12 +42,12 @@ public class Gravestone {
         this.location = location;
     }
 
-    public OfflinePlayer getPlayer() {
-        return player;
+    public UUID getPlayer() {
+        return playerUuid;
     }
 
-    public void setPlayer(OfflinePlayer player) {
-        this.player = player;
+    public void setPlayer(UUID player) {
+        this.playerUuid = player;
     }
 
     public ItemStack[] getInventory() {

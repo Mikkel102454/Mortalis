@@ -52,7 +52,7 @@ public class PlayerDeath implements Listener {
         Location freeLocation = GraveLocation.findGraveLocation(player.getLocation());
         Gravestone gravestone = new Gravestone();
         gravestone.setTimeLived(0);
-        gravestone.setPlayer(player);
+        gravestone.setPlayer(player.getUniqueId());
         gravestone.setLocation(freeLocation);
 
         PlayerInventory inv = player.getInventory();
@@ -89,7 +89,7 @@ public class PlayerDeath implements Listener {
         boolean debug = Main.config.getBoolean("gravestone.debug");
         if(debug) Main.plugin.getLogger().info("Getting player for gravestone");
 
-        Player player = grave.getPlayer().getPlayer();
+        Player player = Bukkit.getOfflinePlayer(grave.getPlayer()).getPlayer();
         if (player == null || !player.isOnline()) {
             if(debug) Main.plugin.getLogger().warning("Could not get the player. Returning!");
             return 1;
@@ -330,7 +330,7 @@ public class PlayerDeath implements Listener {
         // only perform pickup once
         if (e.getHand() != EquipmentSlot.HAND) return;
 
-        if (!target.getPlayer().getUniqueId().equals(player.getUniqueId())) {
+        if (!target.getPlayer().equals(player.getUniqueId())) {
             if(RoleAPI.hasPlayerPermission(player,
                             Main.config.getString("permission.inspect"))){
                 GraveMenu.open(player, target);

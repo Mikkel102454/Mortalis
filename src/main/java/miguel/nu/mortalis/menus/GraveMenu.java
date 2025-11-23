@@ -3,6 +3,7 @@ package miguel.nu.mortalis.menus;
 import miguel.nu.mortalis.Classes.Gravestone;
 import miguel.nu.regula.menus.MenuHolder;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Item;
@@ -13,7 +14,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 public class GraveMenu {
     public static void open(Player player, Gravestone grave){
-        MenuHolder holder = new MenuHolder("GRAVE_MENU", 45, Component.text(grave.getPlayer().getName() + "'s grave (READ ONLY)"));
+        MenuHolder holder = new MenuHolder("GRAVE_MENU", 45, Component.text(Bukkit.getOfflinePlayer(grave.getPlayer()).getName() + "'s grave (READ ONLY)"));
         Inventory inventory = holder.getInventory();
 
         ItemStack[] items = grave.getItemStacks();

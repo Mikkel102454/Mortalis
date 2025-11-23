@@ -3,6 +3,7 @@ package miguel.nu.mortalis.Commands;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import miguel.nu.mortalis.Classes.Gravestone;
+import miguel.nu.mortalis.GravePersistent;
 import miguel.nu.mortalis.Main;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -27,7 +28,7 @@ public class GravestoneCommand implements BasicCommand {
 
             boolean gaveMessage = false;
             for(Gravestone gravestone : gravestones){
-                if(!Objects.equals(gravestone.getPlayer().getUniqueId().toString(), player.getUniqueId().toString())) continue;
+                if(!Objects.equals(gravestone.getPlayer().toString(), player.getUniqueId().toString())) continue;
                 String message = Main.config.getString("message.gravestone-location");
                 message = message.replace("%coord_x%", String.valueOf(gravestone.getLocation().getX()));
                 message = message.replace("%coord_y%", String.valueOf(gravestone.getLocation().getY()));
@@ -45,6 +46,10 @@ public class GravestoneCommand implements BasicCommand {
             FileConfiguration config = Main.plugin.getConfig();
             Main.config = config;
             source.getSender().sendMessage("§aConfig for gravestone has been reloaded");
+            return;
+        } else if(player.isOp() && Objects.equals(args[0], "refresh")){
+            Main.playerDeath.gravestones = GravePersistent.loadGraves();
+            source.getSender().sendMessage("§aLoaded gravestones has now been refreshed");
             return;
         }
 

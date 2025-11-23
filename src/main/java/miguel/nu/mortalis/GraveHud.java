@@ -41,7 +41,7 @@ public class GraveHud {
                 int dur = playerDeath.expireTime;
                 int end = safe + dur;
 
-                if (!g.getPlayer().getUniqueId().equals(p.getUniqueId())) {
+                if (!g.getPlayer().equals(p.getUniqueId())) {
                     int despawnLeft = Math.max(0, end - time);
                     p.sendActionBar(Component.text("Not your grave • Despawns in " + Utils.formatDuration(despawnLeft))
                             .color(NamedTextColor.GRAY));

@@ -46,8 +46,8 @@ public class GraveProtection implements Listener{
                 Gravestone gravestone = Main.playerDeath.getGrave(e.getBlock().getLocation());
                 Main.playerDeath.despawnGrave(gravestone);
                 GravePersistent.saveGraves(Main.playerDeath.gravestones);
-                e.getPlayer().sendMessage("§7You broke " + gravestone.getPlayer().getName() + "'s grave.");
-                DiscordAPI.sendModLog(gravestone.getPlayer(), "GraveBreak", null, -2, e.getPlayer());
+                e.getPlayer().sendMessage("§7You broke " + Bukkit.getOfflinePlayer(gravestone.getPlayer()).getName() + "'s grave.");
+                DiscordAPI.sendModLog(Bukkit.getOfflinePlayer(gravestone.getPlayer()), "GraveBreak", null, -2, e.getPlayer());
                 return;
             }
             e.setCancelled(true);

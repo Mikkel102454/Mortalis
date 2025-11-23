@@ -64,3 +64,9 @@ tasks.register('copyToPlugins', Copy) {
     include("*.jar")
     into "D:/Gin/MC-SERVER/plugins"
 }
+
+tasks {
+    runServer {
+        minecraftVersion("1.21.10")
+    }
+}

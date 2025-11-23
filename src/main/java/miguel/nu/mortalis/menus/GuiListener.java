@@ -1,5 +1,6 @@
 package miguel.nu.mortalis.menus;
 
+import miguel.nu.discordRelay.Main;
 import miguel.nu.regula.menus.MenuHolder;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -13,7 +14,9 @@ public class GuiListener implements Listener {
         if (top.getHolder() instanceof MenuHolder holder) {
             switch (holder.getId()) {
                 case "GRAVE_MENU" -> {
-                    event.setCancelled(true);
+                    if(Main.config.getBoolean("gravestone.debug")){
+                        event.setCancelled(true);
+                    }
                 }
             }
         }
